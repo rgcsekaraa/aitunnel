@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>aitunnel</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  .response { white-space: pre-wrap; word-wrap: break-word; }
+  .nav-item[data-active] { background: rgb(24 24 27); color: rgb(52 211 153); }
+  .nav-item[data-active]::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: rgb(52 211 153); }
+  .pulse { animation: pulse 1.6s ease-in-out infinite; }
+  .pulse-dot { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.4 } }
+  /* markdown styling for response */
+  .md h1 { font-size: 1.25rem; font-weight: 700; margin: 1rem 0 0.5rem; }
+  .md h2 { font-size: 1.1rem; font-weight: 700; margin: 0.85rem 0 0.4rem; }
+  .md h3 { font-size: 1rem; font-weight: 600; margin: 0.75rem 0 0.35rem; }
+  .md p  { margin: 0.5rem 0; }
+  .md ul, .md ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+  .md ul { list-style: disc; }
+  .md ol { list-style: decimal; }
+  .md li { margin: 0.15rem 0; }
+  .md code { background: rgb(39 39 42); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+  .md pre { background: rgb(15 15 17); border: 1px solid rgb(39 39 42); padding: 0.75rem; border-radius: 4px; overflow-x: auto; margin: 0.75rem 0; }
+  .md pre code { background: transparent; padding: 0; font-size: 0.85em; }
+  .md blockquote { border-left: 3px solid rgb(63 63 70); padding-left: 0.75rem; color: rgb(161 161 170); margin: 0.5rem 0; }
+  .md a { color: rgb(52 211 153); text-decoration: underline; }
+  .md table { border-collapse: collapse; margin: 0.5rem 0; }
+  .md th, .md td { border: 1px solid rgb(39 39 42); padding: 0.25rem 0.5rem; }
+  .md hr { border-color: rgb(39 39 42); margin: 1rem 0; }
+  .md strong { font-weight: 700; }
+  .md em { font-style: italic; }
+  /* offline banner */
+  .offline-banner { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); background: rgb(127 29 29); color: rgb(254 226 226); padding: 6px 16px; border-radius: 6px; font-size: 12px; z-index: 50; }
+</style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen flex">
+
+<!-- ─────── Sidebar ─────── -->
+<aside class="w-56 border-r border-zinc-800 flex flex-col shrink-0 sticky top-0 h-screen">
+  <div class="px-5 py-4 border-b border-zinc-800">
+    <div class="flex items-center gap-2">
+      <svg width="22" height="22" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect width="32" height="32" rx="7" fill="#10b981"/>
+        <path d="M11 9 L19 16 L11 23 M16 9 L24 16 L16 23"
+              stroke="#022c22" stroke-width="3"
+              stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <span class="text-xl font-bold tracking-tight">aitunnel</span>
+    </div>
+    <div class="text-[11px] text-zinc-500 mt-1">gemini.google.com via web</div>
+  </div>
+  <div class="px-5 py-3 border-b border-zinc-800">
+    <div id="status" class="text-sm text-zinc-500">checking…</div>
+  </div>
+  <nav class="flex-1 py-2">
+    <button data-nav="query"    class="nav-item relative w-full text-left px-5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-900">Query</button>
+    <button data-nav="activity" class="nav-item relative w-full text-left px-5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-900 flex items-center justify-between">
+      <span>Activity</span>
+      <span id="activity-badge" class="hidden text-[10px] bg-zinc-800 px-1.5 py-0.5 rounded-full font-mono"></span>
+    </button>
+    <button data-nav="chats"    class="nav-item relative w-full text-left px-5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-900">Chats</button>
+    <button data-nav="gems"     class="nav-item relative w-full text-left px-5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-900">Gems</button>
+    <button data-nav="research" class="nav-item relative w-full text-left px-5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-900">Deep Research</button>
+  </nav>
+  <div class="p-3 border-t border-zinc-800 text-[11px] text-zinc-600">
+    <div id="footer-running" class="font-mono">0 active · 0 done</div>
+  </div>
+</aside>
+
+<!-- ─────── Main ─────── -->
+<main class="flex-1 p-6 max-w-5xl">
+
+<!-- Query -->
+<section id="view-query" class="view">
+  <h1 class="text-lg font-semibold mb-4">Query</h1>
+  <div class="grid gap-3">
+    <div id="q-dropzone" class="relative">
+      <textarea id="q-prompt" rows="4"
+        class="w-full bg-zinc-900 border border-zinc-800 rounded p-3 text-sm font-mono focus:outline-none focus:border-emerald-500"
+        placeholder="ask gemini anything (⌘+Enter to send, drop files anywhere here to attach)..."></textarea>
+      <div id="q-drop-overlay" class="hidden absolute inset-0 rounded border-2 border-dashed border-emerald-500 bg-emerald-950/30 flex items-center justify-center pointer-events-none">
+        <span class="text-emerald-300 font-medium">Drop to attach</span>
+      </div>
+    </div>
+
+    <div id="q-files-list" class="hidden flex flex-wrap gap-2"></div>
+
+    <div class="flex items-center gap-3 flex-wrap">
+      <select id="q-gem" class="bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm">
+        <option value="">no gem</option>
+      </select>
+      <button id="q-attach" type="button"
+        class="text-sm text-zinc-400 bg-zinc-800 hover:bg-zinc-700 hover:text-zinc-100 px-3 py-2 rounded">
+        📎 Attach
+      </button>
+      <input type="file" id="q-file" multiple class="hidden">
+      <label class="text-sm text-zinc-400 ml-auto">
+        <input type="checkbox" id="q-stream" checked class="mr-1 align-middle"> stream
+      </label>
+      <button id="q-send"
+        class="bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-medium px-4 py-2 rounded text-sm">
+        Send
+      </button>
+    </div>
+
+    <div id="q-status" class="hidden flex items-center gap-2 text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 rounded px-3 py-2">
+      <span class="pulse-dot bg-emerald-400 w-2 h-2 rounded-full"></span>
+      <span id="q-status-text">Thinking...</span>
+      <span id="q-status-time" class="text-zinc-500 font-mono">0.0s</span>
+      <span id="q-status-attempt" class="hidden text-amber-400">attempt 1/3</span>
+      <button id="q-stop" class="ml-auto text-red-400 hover:text-red-300 text-xs px-2 py-0.5 border border-red-900 rounded">Stop</button>
+    </div>
+
+    <div class="hidden" id="q-output-wrap">
+      <div class="flex items-center gap-2 text-xs text-zinc-500 mb-1">
+        <span id="q-meta"></span>
+        <button id="q-copy" class="ml-auto bg-zinc-800 hover:bg-zinc-700 px-2 py-1 rounded">📋 Copy</button>
+        <button id="q-rerender" class="bg-zinc-800 hover:bg-zinc-700 px-2 py-1 rounded" title="Toggle plain/markdown">⇆ MD</button>
+      </div>
+      <div id="q-output" class="response md bg-zinc-900 border border-zinc-800 rounded p-4 text-sm min-h-[6rem]"></div>
+      <button id="q-jump-bottom" class="hidden mt-2 mx-auto block bg-emerald-700 hover:bg-emerald-600 text-emerald-100 text-xs px-3 py-1 rounded">↓ Jump to bottom</button>
+    </div>
+
+    <div id="q-retry-bar" class="hidden bg-red-950/40 border border-red-900 rounded p-3 text-sm flex items-center gap-3">
+      <span class="text-red-300">⚠</span>
+      <span id="q-retry-msg" class="flex-1 text-red-200 text-xs"></span>
+      <button id="q-retry-btn" class="bg-red-900 hover:bg-red-800 text-red-100 text-xs px-3 py-1.5 rounded">Retry</button>
+    </div>
+  </div>
+</section>
+
+<!-- Activity -->
+<section id="view-activity" class="view hidden">
+  <div class="flex items-center mb-4">
+    <h1 class="text-lg font-semibold">Activity</h1>
+    <div class="ml-auto flex items-center gap-2 text-xs">
+      <span id="ac-conn" class="text-zinc-500">connecting…</span>
+      <button id="ac-clear" class="bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded">Clear view</button>
+    </div>
+  </div>
+  <div class="overflow-x-auto rounded border border-zinc-800">
+    <table class="w-full text-xs">
+      <thead>
+        <tr class="bg-zinc-900 text-zinc-400 text-left">
+          <th class="px-3 py-2 font-medium">When</th>
+          <th class="px-3 py-2 font-medium">Method</th>
+          <th class="px-3 py-2 font-medium">Path</th>
+          <th class="px-3 py-2 font-medium">Status</th>
+          <th class="px-3 py-2 font-medium">Try</th>
+          <th class="px-3 py-2 font-medium">Code</th>
+          <th class="px-3 py-2 font-medium text-right">Duration</th>
+        </tr>
+      </thead>
+      <tbody id="ac-rows" class="divide-y divide-zinc-800"></tbody>
+    </table>
+  </div>
+  <div id="ac-empty" class="text-sm text-zinc-500 mt-3">No activity yet - send a query to see jobs here.</div>
+</section>
+
+<!-- Chats -->
+<section id="view-chats" class="view hidden">
+  <div class="flex items-center mb-4">
+    <h1 class="text-lg font-semibold">Persisted chats</h1>
+    <button id="chats-refresh" class="ml-auto bg-zinc-800 hover:bg-zinc-700 text-sm px-3 py-1.5 rounded">Refresh</button>
+  </div>
+  <div id="chats-list" class="text-sm">loading…</div>
+  <div id="chat-detail" class="hidden mt-6 border-t border-zinc-800 pt-4">
+    <div class="flex items-center gap-3 mb-3">
+      <h3 class="font-semibold">History</h3>
+      <span id="chat-detail-cid" class="text-xs text-zinc-500 font-mono"></span>
+      <button id="chat-detail-close" class="ml-auto text-zinc-400 hover:text-zinc-100">×</button>
+    </div>
+    <div id="chat-detail-turns" class="space-y-3"></div>
+  </div>
+</section>
+
+<!-- Gems -->
+<section id="view-gems" class="view hidden">
+  <h1 class="text-lg font-semibold mb-4">Gems</h1>
+  <div class="grid lg:grid-cols-2 gap-6">
+    <div>
+      <div class="flex items-center mb-3">
+        <h2 class="text-sm font-medium text-zinc-400">Existing</h2>
+        <button id="gems-refresh" class="ml-auto bg-zinc-800 hover:bg-zinc-700 text-sm px-3 py-1.5 rounded">Refresh</button>
+      </div>
+      <div id="gems-list" class="text-sm">loading…</div>
+    </div>
+    <div>
+      <h2 class="text-sm font-medium text-zinc-400 mb-3">Create custom gem</h2>
+      <div class="grid gap-2">
+        <input id="gem-name" placeholder="Name" class="bg-zinc-900 border border-zinc-800 rounded p-2 text-sm focus:outline-none focus:border-emerald-500">
+        <input id="gem-desc" placeholder="Description (optional)" class="bg-zinc-900 border border-zinc-800 rounded p-2 text-sm focus:outline-none focus:border-emerald-500">
+        <textarea id="gem-prompt" rows="6" placeholder="System instructions / prompt…" class="bg-zinc-900 border border-zinc-800 rounded p-2 text-sm font-mono focus:outline-none focus:border-emerald-500"></textarea>
+        <button id="gem-create" class="bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-medium px-4 py-2 rounded text-sm">Create</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Deep Research -->
+<section id="view-research" class="view hidden">
+  <h1 class="text-lg font-semibold mb-4">Deep Research</h1>
+  <div class="grid gap-3">
+    <textarea id="r-prompt" rows="3" class="w-full bg-zinc-900 border border-zinc-800 rounded p-3 text-sm font-mono focus:outline-none focus:border-emerald-500" placeholder="research topic - full pipeline runs synchronously, can take 5–15 minutes"></textarea>
+    <div class="flex items-center gap-3 flex-wrap text-sm">
+      <label class="text-zinc-400">poll interval (s)</label>
+      <input id="r-poll" type="number" value="10" class="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 w-20">
+      <label class="text-zinc-400">timeout (s)</label>
+      <input id="r-timeout" type="number" value="600" class="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 w-24">
+      <button id="r-run" class="ml-auto bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-medium px-4 py-2 rounded">Run research</button>
+    </div>
+    <div id="r-output" class="hidden grid gap-3"></div>
+  </div>
+</section>
+
+</main>
+
+<!-- ─────── Job detail drawer (modal-ish) ─────── -->
+<div id="ac-detail" class="fixed inset-0 bg-black/70 hidden z-40" onclick="closeJobDetail(event)">
+  <div class="absolute right-0 top-0 bottom-0 w-full max-w-2xl bg-zinc-950 border-l border-zinc-800 p-6 overflow-y-auto" onclick="event.stopPropagation()">
+    <div class="flex items-center mb-4">
+      <h2 class="text-lg font-semibold" id="acd-title">Job</h2>
+      <button class="ml-auto text-zinc-400 hover:text-zinc-100 text-xl" onclick="closeJobDetail()">×</button>
+    </div>
+    <div id="acd-body" class="text-sm space-y-4"></div>
+  </div>
+</div>
+
+<script>
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+const escapeHTML = s => String(s ?? '').replace(/[&<>"']/g, c => ({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+}[c]));
+
+// ── nav ──
+function setView(name) {
+  $$('.view').forEach(v => v.classList.add('hidden'));
+  $('#view-' + name).classList.remove('hidden');
+  $$('.nav-item').forEach(b => b.removeAttribute('data-active'));
+  $(`[data-nav="${name}"]`).setAttribute('data-active', '1');
+  if (name === 'chats') refreshChats();
+  if (name === 'gems') { refreshGems(); refreshGemSelect(); }
+}
+$$('.nav-item').forEach(b => b.addEventListener('click', () => setView(b.dataset.nav)));
+
+// ── status / health ──
+async function pollHealth() {
+  const el = $('#status');
+  try {
+    const j = await fetch('/health').then(r => r.json());
+    el.textContent = j.ok ? '● ready' : '● not ready';
+    el.className = 'text-sm ' + (j.ok ? 'text-emerald-400' : 'text-red-400');
+  } catch {
+    el.textContent = '● offline';
+    el.className = 'text-sm text-red-400';
+  }
+}
+
+// ── time formatting ──
+const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+function relTime(d) {
+  const diff = (d.getTime() - Date.now()) / 1000; // seconds, negative for past
+  const abs = Math.abs(diff);
+  if (abs < 5) return 'just now';
+  if (abs < 60) return rtf.format(Math.round(diff), 'second');
+  if (abs < 3600) return rtf.format(Math.round(diff / 60), 'minute');
+  if (abs < 86400) return rtf.format(Math.round(diff / 3600), 'hour');
+  return rtf.format(Math.round(diff / 86400), 'day');
+}
+function fmtAbs(d) {
+  return d.toLocaleString(undefined, {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  });
+}
+function fmtDuration(ms) {
+  if (ms < 1000) return ms + 'ms';
+  if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+  return Math.floor(ms / 60000) + 'm ' + Math.floor((ms % 60000) / 1000) + 's';
+}
+
+// ── activity log ──
+const jobs = new Map(); // id → job
+let activeCount = 0, doneCount = 0;
+
+function statusPill(status) {
+  const cfg = {
+    running:  ['bg-amber-900/40 text-amber-300 pulse',     'running'],
+    retrying: ['bg-orange-900/40 text-orange-300 pulse',  'retrying'],
+    success:  ['bg-emerald-900/40 text-emerald-300',       'ok'],
+    failed:   ['bg-red-900/40 text-red-300',               'failed'],
+  }[status] || ['bg-zinc-800 text-zinc-300', status];
+  return `<span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${cfg[0]}">${cfg[1]}</span>`;
+}
+
+function renderJobRow(j) {
+  const tr = document.createElement('tr');
+  tr.id = 'job-' + j.id;
+  tr.className = 'hover:bg-zinc-900 cursor-pointer';
+  tr.onclick = () => showJobDetail(j.id);
+  tr.innerHTML = `
+    <td class="px-3 py-1.5 text-zinc-400" title="${escapeHTML(fmtAbs(new Date(j.started_at)))}">${escapeHTML(relTime(new Date(j.started_at)))}</td>
+    <td class="px-3 py-1.5 font-mono text-zinc-300">${escapeHTML(j.method)}</td>
+    <td class="px-3 py-1.5 font-mono text-zinc-300 truncate max-w-xs">${escapeHTML(j.path)}</td>
+    <td class="px-3 py-1.5">${statusPill(j.status)}</td>
+    <td class="px-3 py-1.5 text-zinc-400">${j.attempts || 1}</td>
+    <td class="px-3 py-1.5 text-zinc-400">${j.status_code || '-'}</td>
+    <td class="px-3 py-1.5 text-right text-zinc-400">${j.duration_ms != null ? fmtDuration(j.duration_ms) : '-'}</td>
+  `;
+  return tr;
+}
+
+function applyJob(j) {
+  const isNew = !jobs.has(j.id);
+  const prev = jobs.get(j.id);
+  jobs.set(j.id, j);
+
+  if (j.status === 'running' || j.status === 'retrying') {
+    if (!prev || (prev.status !== 'running' && prev.status !== 'retrying')) {
+      activeCount++;
+    }
+  } else if (prev && (prev.status === 'running' || prev.status === 'retrying')) {
+    activeCount = Math.max(0, activeCount - 1);
+    doneCount++;
+  } else if (isNew) {
+    doneCount++;
+  }
+
+  const tbody = $('#ac-rows');
+  let row = document.getElementById('job-' + j.id);
+  const fresh = renderJobRow(j);
+  if (row) {
+    row.replaceWith(fresh);
+  } else {
+    tbody.prepend(fresh);
+  }
+  $('#ac-empty').classList.toggle('hidden', tbody.childElementCount > 0);
+  updateFooter();
+  bumpActivityBadge(j);
+}
+
+function updateFooter() {
+  $('#footer-running').textContent = `${activeCount} active · ${doneCount} done`;
+}
+
+function bumpActivityBadge(j) {
+  // Show a small unread indicator if user isn't on the activity view.
+  if ($('#view-activity').classList.contains('hidden')) {
+    const badge = $('#activity-badge');
+    badge.classList.remove('hidden');
+    const n = (parseInt(badge.textContent || '0', 10) || 0) + 1;
+    badge.textContent = n;
+  }
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target?.dataset?.nav === 'activity') {
+    $('#activity-badge').classList.add('hidden');
+    $('#activity-badge').textContent = '';
+  }
+});
+
+function showJobDetail(id) {
+  const j = jobs.get(id);
+  if (!j) return;
+  $('#acd-title').textContent = `${j.method} ${j.path}`;
+  const startedStr = `${fmtAbs(new Date(j.started_at))} (${relTime(new Date(j.started_at))})`;
+  const errBlock = j.error ? `<div><div class="text-xs text-zinc-500 mb-1">error</div><pre class="bg-zinc-900 border border-zinc-800 rounded p-3 text-xs text-red-400 whitespace-pre-wrap">${escapeHTML(j.error)}</pre></div>` : '';
+  const retryBlock = j.retry_note ? `<div><div class="text-xs text-zinc-500 mb-1">retry reason</div><pre class="bg-zinc-900 border border-zinc-800 rounded p-3 text-xs text-orange-300 whitespace-pre-wrap">${escapeHTML(j.retry_note)}</pre></div>` : '';
+  $('#acd-body').innerHTML = `
+    <div class="grid grid-cols-2 gap-3">
+      <div><div class="text-xs text-zinc-500">id</div><div class="font-mono text-xs">${escapeHTML(j.id)}</div></div>
+      <div><div class="text-xs text-zinc-500">status</div><div>${statusPill(j.status)} <span class="text-xs text-zinc-400 ml-2">code ${j.status_code || '-'} · attempt ${j.attempts || 1}</span></div></div>
+      <div><div class="text-xs text-zinc-500">started</div><div class="text-xs">${escapeHTML(startedStr)}</div></div>
+      <div><div class="text-xs text-zinc-500">duration</div><div class="text-xs">${j.duration_ms != null ? fmtDuration(j.duration_ms) : '-'}</div></div>
+    </div>
+    ${retryBlock}
+    ${errBlock}
+    <div><div class="text-xs text-zinc-500 mb-1">request</div><pre class="bg-zinc-900 border border-zinc-800 rounded p-3 text-xs whitespace-pre-wrap">${escapeHTML(j.request || '<em>(no body)</em>')}</pre></div>
+    <div><div class="text-xs text-zinc-500 mb-1">response</div><pre class="bg-zinc-900 border border-zinc-800 rounded p-3 text-xs whitespace-pre-wrap">${escapeHTML(j.response || '<em>(no body captured)</em>')}</pre></div>
+  `;
+  $('#ac-detail').classList.remove('hidden');
+}
+function closeJobDetail() { $('#ac-detail').classList.add('hidden'); }
+window.closeJobDetail = closeJobDetail;
+
+$('#ac-clear').addEventListener('click', () => {
+  $('#ac-rows').innerHTML = '';
+  $('#ac-empty').classList.remove('hidden');
+});
+
+// SSE subscribe
+function startActivityStream() {
+  const es = new EventSource('/jobs/stream');
+  es.addEventListener('open', () => $('#ac-conn').textContent = 'live');
+  es.addEventListener('error', () => $('#ac-conn').textContent = 'reconnecting…');
+  es.addEventListener('job', (ev) => {
+    try { applyJob(JSON.parse(ev.data)); } catch {}
+  });
+}
+startActivityStream();
+
+// Periodically re-render rows so relative times update.
+setInterval(() => {
+  for (const [id, j] of jobs) {
+    const row = document.getElementById('job-' + id);
+    if (row) row.replaceWith(renderJobRow(j));
+  }
+}, 5000);
+
+// ── offline detector ──
+function setOnlineState() {
+  let banner = document.getElementById('offline-banner');
+  if (!navigator.onLine) {
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'offline-banner';
+      banner.className = 'offline-banner';
+      banner.textContent = '⚠ offline — requests will queue until reconnect';
+      document.body.appendChild(banner);
+    }
+  } else if (banner) {
+    banner.remove();
+  }
+}
+window.addEventListener('online', setOnlineState);
+window.addEventListener('offline', setOnlineState);
+setOnlineState();
+
+// ── markdown ──
+let renderAsMarkdown = true;
+if (window.marked) {
+  marked.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
+}
+function renderResponse(el, text) {
+  if (renderAsMarkdown && window.marked) {
+    el.innerHTML = marked.parse(text);
+    // Make sure it stays safe: marked escapes HTML in source by default unless
+    // we set sanitize=false (we don't). External links open in new tab.
+    el.querySelectorAll('a').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
+  } else {
+    el.textContent = text;
+  }
+}
+
+// Smart auto-scroll: only autoscroll if user is near the bottom.
+function setupSmartScroll() {
+  const SLACK = 60; // px from bottom
+  let userScrolledUp = false;
+  const isAtBottom = () => (window.scrollY + window.innerHeight) >= (document.documentElement.scrollHeight - SLACK);
+  window.addEventListener('scroll', () => {
+    userScrolledUp = !isAtBottom();
+    $('#q-jump-bottom').classList.toggle('hidden', !userScrolledUp);
+  });
+  $('#q-jump-bottom').addEventListener('click', () => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+  });
+  return {
+    bumpIfFollowing: () => { if (!userScrolledUp) window.scrollTo(0, document.documentElement.scrollHeight); },
+    reset: () => { userScrolledUp = false; $('#q-jump-bottom').classList.add('hidden'); },
+  };
+}
+const scroller = setupSmartScroll();
+
+$('#q-copy').addEventListener('click', async () => {
+  const out = $('#q-output');
+  const text = renderAsMarkdown && out.dataset.raw ? out.dataset.raw : out.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = $('#q-copy');
+    const orig = btn.textContent;
+    btn.textContent = '✓ copied';
+    setTimeout(() => btn.textContent = orig, 1500);
+  } catch {
+    flashError('clipboard not available — select and copy manually');
+  }
+});
+$('#q-rerender').addEventListener('click', () => {
+  renderAsMarkdown = !renderAsMarkdown;
+  const out = $('#q-output');
+  const raw = out.dataset.raw || out.textContent;
+  renderResponse(out, raw);
+  out.dataset.raw = raw;
+  $('#q-rerender').textContent = renderAsMarkdown ? '⇆ MD' : '⇆ Plain';
+});
+
+// Persist last response so an accidental reload doesn't lose it.
+const PERSIST_KEY = 'q.last';
+try {
+  const saved = JSON.parse(sessionStorage.getItem(PERSIST_KEY) || 'null');
+  if (saved?.text) {
+    const out = $('#q-output');
+    out.dataset.raw = saved.text;
+    renderResponse(out, saved.text);
+    $('#q-output-wrap').classList.remove('hidden');
+    if (saved.meta) {
+      $('#q-meta').textContent = saved.meta;
+    }
+    if (saved.prompt) $('#q-prompt').value = saved.prompt;
+  }
+} catch {}
+
+// ── query ──
+const MAX_PROMPT_CHARS = 500_000;
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_FILES = 10;
+const RETRY_DELAYS_MS = [800, 2000, 5000];
+
+const queryState = {
+  files: new Map(),
+  inflight: null,
+  statusTimer: null,
+  startTime: 0,
+};
+
+function fmtBytes(n) {
+  if (n < 1024) return n + 'B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + 'KB';
+  return (n / 1024 / 1024).toFixed(1) + 'MB';
+}
+
+function renderFileChip(id, f) {
+  const old = document.getElementById('file-' + id);
+  if (old) old.remove();
+  const chip = document.createElement('div');
+  chip.id = 'file-' + id;
+  chip.className = 'flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-xs';
+  let preview;
+  if (f.file.type.startsWith('image/')) {
+    const url = URL.createObjectURL(f.file);
+    preview = `<img src="${url}" class="w-8 h-8 object-cover rounded" alt="">`;
+  } else {
+    preview = `<span class="w-8 h-8 flex items-center justify-center bg-zinc-800 rounded text-zinc-400">📄</span>`;
+  }
+  let statusIcon;
+  if (f.error) statusIcon = `<span class="text-red-400" title="${escapeHTML(f.error)}">✗</span>`;
+  else if (f.uploaded) statusIcon = `<span class="text-emerald-400">✓</span>`;
+  else statusIcon = `<span class="text-zinc-500 pulse-dot">⌛</span>`;
+  chip.innerHTML = `
+    ${preview}
+    <span class="truncate max-w-[180px]" title="${escapeHTML(f.file.name)}">${escapeHTML(f.file.name)}</span>
+    <span class="text-zinc-500">${fmtBytes(f.file.size)}</span>
+    ${statusIcon}
+    <button class="text-zinc-500 hover:text-red-400" data-remove>×</button>
+  `;
+  chip.querySelector('[data-remove]').onclick = () => {
+    queryState.files.delete(id);
+    chip.remove();
+    syncFilesUI();
+  };
+  $('#q-files-list').appendChild(chip);
+}
+function syncFilesUI() {
+  $('#q-files-list').classList.toggle('hidden', queryState.files.size === 0);
+}
+function addFiles(fileList) {
+  for (const file of fileList) {
+    if (queryState.files.size >= MAX_FILES) {
+      flashError(`max ${MAX_FILES} files per query`);
+      break;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      flashError(`${file.name}: ${fmtBytes(file.size)} exceeds 20MB per-file limit`);
+      continue;
+    }
+    const id = (crypto.randomUUID && crypto.randomUUID()) || String(Math.random());
+    const f = { file, uploaded: false };
+    queryState.files.set(id, f);
+    renderFileChip(id, f);
+  }
+  syncFilesUI();
+}
+
+const dropzone = $('#q-dropzone');
+let dragDepth = 0;
+['dragenter', 'dragover'].forEach(ev => dropzone.addEventListener(ev, (e) => {
+  if (e.dataTransfer.types?.includes('Files')) {
+    e.preventDefault();
+    if (ev === 'dragenter') dragDepth++;
+    $('#q-drop-overlay').classList.remove('hidden');
+  }
+}));
+dropzone.addEventListener('dragleave', () => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) $('#q-drop-overlay').classList.add('hidden');
+});
+dropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  $('#q-drop-overlay').classList.add('hidden');
+  if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+});
+$('#q-attach').addEventListener('click', () => $('#q-file').click());
+$('#q-file').addEventListener('change', (e) => {
+  addFiles(e.target.files);
+  e.target.value = '';
+});
+
+function startStatus(text) {
+  $('#q-status').classList.remove('hidden');
+  $('#q-status-text').textContent = text || 'Thinking...';
+  queryState.startTime = Date.now();
+  if (queryState.statusTimer) clearInterval(queryState.statusTimer);
+  queryState.statusTimer = setInterval(() => {
+    const s = (Date.now() - queryState.startTime) / 1000;
+    $('#q-status-time').textContent = s.toFixed(1) + 's';
+  }, 100);
+}
+function stopStatus() {
+  $('#q-status').classList.add('hidden');
+  if (queryState.statusTimer) {
+    clearInterval(queryState.statusTimer);
+    queryState.statusTimer = null;
+  }
+}
+function setAttempt(n, max) {
+  const el = $('#q-status-attempt');
+  if (n <= 1) { el.classList.add('hidden'); return; }
+  el.textContent = `attempt ${n}/${max}`;
+  el.classList.remove('hidden');
+}
+function showRetry(msg) {
+  $('#q-retry-msg').textContent = msg;
+  $('#q-retry-bar').classList.remove('hidden');
+}
+function hideRetry() { $('#q-retry-bar').classList.add('hidden'); }
+function flashError(msg) {
+  showRetry(msg);
+  setTimeout(() => { if ($('#q-retry-msg').textContent === msg) hideRetry(); }, 3500);
+}
+$('#q-retry-btn').addEventListener('click', () => { hideRetry(); sendQuery(); });
+$('#q-stop').addEventListener('click', () => {
+  if (queryState.inflight) { queryState.inflight.abort(); queryState.inflight = null; }
+});
+
+function isTransientError(status, err) {
+  if (status === 502 || status === 503 || status === 504) return true;
+  if (err && /network|fetch|timeout|ECONN/i.test(err.message || err)) return true;
+  return false;
+}
+
+async function uploadPending() {
+  // Upload all pending files in parallel; the file chips update independently
+  // as each one finishes, so the user sees progress instead of one big stall.
+  const tasks = [];
+  for (const [id, f] of queryState.files) {
+    if (f.uploaded || f.error) continue;
+    tasks.push((async () => {
+      try {
+        const fd = new FormData();
+        fd.append('file', f.file);
+        const r = await fetch('/upload', { method: 'POST', body: fd });
+        if (!r.ok) throw new Error(`upload ${r.status}: ${(await r.text()).slice(0, 200)}`);
+        const j = await r.json();
+        f.uploaded = true;
+        f.url = j.URL || j.url;
+        f.filename = j.Filename || j.filename || f.file.name;
+      } catch (e) {
+        f.error = e.message || String(e);
+      }
+      renderFileChip(id, f);
+    })());
+  }
+  await Promise.all(tasks);
+  for (const f of queryState.files.values()) if (f.error) return false;
+  return true;
+}
+
+let querySending = false;
+async function sendQuery() {
+  if (querySending) return; // concurrent-send guard
+  const prompt = $('#q-prompt').value;
+  if (!prompt.trim()) return;
+  if (prompt.length > MAX_PROMPT_CHARS) {
+    flashError(`prompt is ${prompt.length} chars; max ${MAX_PROMPT_CHARS}`);
+    return;
+  }
+  if (!navigator.onLine) {
+    flashError('offline - reconnect to send');
+    return;
+  }
+  querySending = true;
+  scroller.reset();
+  hideRetry();
+  const useStream = $('#q-stream').checked;
+  const gemID = $('#q-gem').value;
+  const out = $('#q-output');
+  const meta = $('#q-meta');
+  const send = $('#q-send');
+  out.textContent = '';
+  out.dataset.raw = '';
+  $('#q-output-wrap').classList.remove('hidden');
+  meta.textContent = '';
+  send.disabled = true;
+  send.textContent = 'Sending...';
+  startStatus('Uploading attachments...');
+
+  if (queryState.files.size > 0) {
+    const ok = await uploadPending();
+    if (!ok) {
+      stopStatus();
+      send.disabled = false; send.textContent = 'Send';
+      showRetry('one or more files failed to upload - fix or remove and retry');
+      return;
+    }
+  }
+
+  const files = [];
+  for (const f of queryState.files.values()) {
+    if (f.uploaded) files.push({ URL: f.url, Filename: f.filename });
+  }
+  const body = { prompt: prompt.trim(), files, gem_id: gemID || undefined };
+
+  let attempt = 0;
+  const maxAttempts = 1 + RETRY_DELAYS_MS.length;
+  startStatus('Thinking...');
+  try {
+    while (attempt < maxAttempts) {
+      attempt++;
+      setAttempt(attempt, maxAttempts);
+      try {
+        if (useStream) await runStream(body, out, meta);
+        else await runOneShot(body, out, meta);
+        for (const [id, f] of [...queryState.files]) {
+          if (f.uploaded) {
+            queryState.files.delete(id);
+            document.getElementById('file-' + id)?.remove();
+          }
+        }
+        syncFilesUI();
+        return;
+      } catch (e) {
+        if (e.name === 'AbortError') {
+          out.textContent += '\n[stopped by user]';
+          return;
+        }
+        const status = e.status || 0;
+        if (status === 401) {
+          out.textContent = 'session expired - reloading to setup...';
+          setTimeout(() => location.reload(), 1500);
+          return;
+        }
+        if (isTransientError(status, e) && attempt < maxAttempts) {
+          startStatus(`Retry in ${RETRY_DELAYS_MS[attempt - 1]}ms (${e.message || e})...`);
+          await new Promise(r => setTimeout(r, RETRY_DELAYS_MS[attempt - 1]));
+          startStatus('Thinking...');
+          out.textContent = '';
+          continue;
+        }
+        showRetry(`${e.message || 'request failed'} (after ${attempt} attempt${attempt > 1 ? 's' : ''})`);
+        return;
+      }
+    }
+  } finally {
+    stopStatus();
+    queryState.inflight = null;
+    send.disabled = false;
+    send.textContent = 'Send';
+    querySending = false;
+    // Persist final state
+    try {
+      const out = $('#q-output');
+      const raw = out.dataset.raw || out.textContent;
+      sessionStorage.setItem(PERSIST_KEY, JSON.stringify({
+        text: raw,
+        meta: $('#q-meta').textContent,
+        prompt: $('#q-prompt').value,
+      }));
+    } catch {}
+  }
+}
+
+async function runOneShot(body, out, meta) {
+  const ctrl = new AbortController();
+  queryState.inflight = ctrl;
+  const r = await fetch('/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: ctrl.signal,
+  });
+  const text = await r.text();
+  if (!r.ok) {
+    const err = new Error(text || `HTTP ${r.status}`);
+    err.status = r.status;
+    throw err;
+  }
+  const j = JSON.parse(text);
+  const resp = j.response || '';
+  out.dataset.raw = resp;
+  renderResponse(out, resp);
+  if (j.metadata?.cid) {
+    meta.textContent = `cid=${j.metadata.cid} rid=${j.metadata.rid}`;
+  }
+  scroller.bumpIfFollowing();
+}
+
+async function runStream(body, out, meta) {
+  const ctrl = new AbortController();
+  queryState.inflight = ctrl;
+  const r = await fetch('/query/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: ctrl.signal,
+  });
+  if (!r.ok) {
+    const err = new Error((await r.text()).slice(0, 400) || `HTTP ${r.status}`);
+    err.status = r.status;
+    throw err;
+  }
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  let firstToken = false;
+  outer: for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let sep;
+    while ((sep = buf.indexOf('\n\n')) >= 0) {
+      const evtRaw = buf.slice(0, sep);
+      buf = buf.slice(sep + 2);
+      let evt = '', data = '';
+      for (const line of evtRaw.split('\n')) {
+        if (line.startsWith('event: ')) evt = line.slice(7);
+        else if (line.startsWith('data: ')) data = line.slice(6);
+      }
+      if (!data) continue;
+      let parsed; try { parsed = JSON.parse(data); } catch { continue; }
+      if (evt === 'delta' && parsed.text) {
+        if (!firstToken) {
+          firstToken = true;
+          $('#q-status-text').textContent = 'Generating...';
+        }
+        const prev = out.dataset.raw || '';
+        const next = prev + parsed.text;
+        out.dataset.raw = next;
+        renderResponse(out, next);
+        scroller.bumpIfFollowing();
+      } else if (evt === 'done') {
+        try { reader.cancel(); } catch {}
+        break outer;
+      } else if (evt === 'error') {
+        try { reader.cancel(); } catch {}
+        const err = new Error(parsed.error || 'stream error');
+        if (/transient|1013|temporarily/i.test(parsed.error || '')) err.status = 502;
+        throw err;
+      }
+    }
+  }
+}
+
+$('#q-send').addEventListener('click', sendQuery);
+$('#q-prompt').addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') sendQuery();
+});
+
+// ── chats ──
+async function refreshChats() {
+  const list = $('#chats-list');
+  list.innerHTML = '<div class="text-zinc-500">loading…</div>';
+  try {
+    const chats = await fetch('/chats?recent=50').then(r => r.json());
+    if (!chats?.length) { list.innerHTML = '<div class="text-zinc-500">no persisted chats</div>'; return; }
+    list.innerHTML = '';
+    for (const c of chats) {
+      const ts = c.Timestamp ? new Date(c.Timestamp) : null;
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-3 border-b border-zinc-800 py-2';
+      row.innerHTML = `
+        <div class="flex-1 min-w-0">
+          <div class="font-medium truncate">${escapeHTML(c.Title) || '<em class="text-zinc-500">untitled</em>'}</div>
+          <div class="text-xs text-zinc-500 truncate">${escapeHTML(c.CID)}${ts ? ' · ' + escapeHTML(fmtAbs(ts)) + ' (' + escapeHTML(relTime(ts)) + ')' : ''}</div>
+        </div>
+        <button class="text-emerald-400 hover:text-emerald-300 text-sm" data-act="view">view</button>
+        <button class="text-red-400 hover:text-red-300 text-sm" data-act="del">delete</button>
+      `;
+      row.querySelector('[data-act="view"]').onclick = () => viewChat(c.CID);
+      row.querySelector('[data-act="del"]').onclick = () => deleteChat(c.CID);
+      list.appendChild(row);
+    }
+  } catch (e) { list.textContent = `error: ${e.message}`; }
+}
+async function viewChat(cid) {
+  const wrap = $('#chat-detail');
+  const turns = $('#chat-detail-turns');
+  $('#chat-detail-cid').textContent = cid;
+  wrap.classList.remove('hidden');
+  turns.innerHTML = '<div class="text-zinc-500">loading…</div>';
+  try {
+    const r = await fetch(`/chats/${encodeURIComponent(cid)}/history?limit=20`);
+    if (r.status === 202) { turns.textContent = 'still generating, try again later.'; return; }
+    if (!r.ok) { turns.textContent = `error: ${await r.text()}`; return; }
+    const h = await r.json();
+    if (!h.Turns?.length) { turns.textContent = 'no turns'; return; }
+    turns.innerHTML = '';
+    for (const t of h.Turns) {
+      const div = document.createElement('div');
+      div.className = 'border-l-2 pl-3 ' + (t.Role === 'user' ? 'border-blue-500' : 'border-emerald-500');
+      div.innerHTML = `
+        <div class="text-xs text-zinc-500 mb-1">${escapeHTML(t.Role)}</div>
+        <div class="response text-sm">${escapeHTML(t.Text)}</div>`;
+      turns.appendChild(div);
+    }
+  } catch (e) { turns.textContent = `error: ${e.message}`; }
+}
+$('#chat-detail-close').addEventListener('click', () => $('#chat-detail').classList.add('hidden'));
+async function deleteChat(cid) {
+  if (!confirm(`Delete chat ${cid}?`)) return;
+  const r = await fetch(`/chats/${encodeURIComponent(cid)}`, { method: 'DELETE' });
+  if (!r.ok) { alert(`delete failed: ${await r.text()}`); return; }
+  refreshChats();
+}
+$('#chats-refresh').addEventListener('click', refreshChats);
+
+// ── gems ──
+async function refreshGems() {
+  const list = $('#gems-list');
+  list.innerHTML = '<div class="text-zinc-500">loading…</div>';
+  try {
+    const gems = await fetch('/gems').then(r => r.json());
+    if (!gems?.length) { list.innerHTML = '<div class="text-zinc-500">no gems</div>'; return; }
+    list.innerHTML = '';
+    for (const g of gems) {
+      const row = document.createElement('div');
+      row.className = 'border border-zinc-800 rounded p-3 mb-2';
+      row.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-medium">${escapeHTML(g.Name)}</span>
+              <span class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${g.Predefined ? 'bg-zinc-800 text-zinc-400' : 'bg-emerald-900 text-emerald-300'}">${g.Predefined ? 'system' : 'custom'}</span>
+            </div>
+            <div class="text-xs text-zinc-500 mt-0.5">${escapeHTML(g.Description || '')}</div>
+            ${g.Prompt ? `<details class="mt-2"><summary class="text-xs text-zinc-400 cursor-pointer">prompt</summary><pre class="text-xs font-mono text-zinc-300 mt-1 whitespace-pre-wrap">${escapeHTML(g.Prompt)}</pre></details>` : ''}
+          </div>
+          ${!g.Predefined ? '<button class="text-red-400 hover:text-red-300 text-sm" data-act="del">delete</button>' : ''}
+        </div>`;
+      const del = row.querySelector('[data-act="del"]');
+      if (del) del.onclick = () => deleteGem(g.ID);
+      list.appendChild(row);
+    }
+  } catch (e) { list.textContent = `error: ${e.message}`; }
+}
+async function refreshGemSelect() {
+  try {
+    const gems = await fetch('/gems').then(r => r.json());
+    const sel = $('#q-gem');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">no gem</option>';
+    for (const g of gems) {
+      const o = document.createElement('option');
+      o.value = g.ID; o.textContent = g.Name + (g.Predefined ? ' (system)' : '');
+      sel.appendChild(o);
+    }
+    sel.value = cur;
+  } catch {}
+}
+async function createGem() {
+  const name = $('#gem-name').value.trim();
+  const prompt = $('#gem-prompt').value.trim();
+  const description = $('#gem-desc').value.trim();
+  if (!name || !prompt) { alert('name and prompt required'); return; }
+  const r = await fetch('/gems', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, prompt, description })
+  });
+  if (!r.ok) { alert(`create failed: ${await r.text()}`); return; }
+  $('#gem-name').value = ''; $('#gem-prompt').value = ''; $('#gem-desc').value = '';
+  refreshGems(); refreshGemSelect();
+}
+async function deleteGem(id) {
+  if (!confirm('Delete gem?')) return;
+  const r = await fetch('/gems/' + encodeURIComponent(id), { method: 'DELETE' });
+  if (!r.ok) { alert(`delete failed: ${await r.text()}`); return; }
+  refreshGems(); refreshGemSelect();
+}
+$('#gems-refresh').addEventListener('click', refreshGems);
+$('#gem-create').addEventListener('click', createGem);
+
+// ── deep research ──
+async function runResearch() {
+  const prompt = $('#r-prompt').value.trim();
+  if (!prompt) return;
+  const out = $('#r-output');
+  const btn = $('#r-run');
+  out.classList.remove('hidden');
+  out.innerHTML = `<div class="text-zinc-400 text-sm">Running deep research… (track progress in Activity)</div>`;
+  btn.disabled = true; btn.textContent = 'Running…';
+  try {
+    const r = await fetch('/deep-research', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        poll_interval_sec: parseInt($('#r-poll').value, 10) || 10,
+        timeout_sec: parseInt($('#r-timeout').value, 10) || 600,
+      }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { out.innerHTML = `<div class="text-red-400">${escapeHTML(j.error || JSON.stringify(j))}</div>`; return; }
+
+    const planHTML = j.plan ? `
+      <div class="border border-zinc-800 rounded p-4">
+        <div class="font-semibold mb-1">${escapeHTML(j.plan.Title || '(no title)')}</div>
+        ${j.plan.Query ? `<div class="text-sm text-zinc-300 mb-2">${escapeHTML(j.plan.Query)}</div>` : ''}
+        ${j.plan.Steps?.length ? `<ul class="text-sm text-zinc-400 list-disc pl-5 space-y-0.5">${j.plan.Steps.map(s => `<li>${escapeHTML(s)}</li>`).join('')}</ul>` : ''}
+        ${j.plan.ETAText ? `<div class="text-xs text-zinc-500 mt-2">ETA: ${escapeHTML(j.plan.ETAText)}</div>` : ''}
+      </div>` : '';
+    const statusHTML = j.statuses?.length ? `
+      <div class="border border-zinc-800 rounded p-4">
+        <div class="text-sm font-semibold mb-2">Status updates (${j.statuses.length})</div>
+        <div class="space-y-1 text-xs font-mono">${j.statuses.map(s => `<div>${escapeHTML(s.State)}${s.Done ? ' (done)' : ''}</div>`).join('')}</div>
+      </div>` : '';
+    const finalHTML = j.final_text ? `
+      <div class="border border-emerald-700 rounded p-4">
+        <div class="text-sm font-semibold mb-2 text-emerald-400">Final result</div>
+        <div class="response text-sm">${escapeHTML(j.final_text)}</div>
+      </div>` : '<div class="text-zinc-500 text-sm">No final output yet (timed out or still running).</div>';
+    out.innerHTML = planHTML + statusHTML + finalHTML;
+  } catch (e) {
+    out.innerHTML = `<div class="text-red-400">${escapeHTML(e.message)}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Run research';
+  }
+}
+$('#r-run').addEventListener('click', runResearch);
+
+// ── init ──
+setView('query');
+pollHealth();
+setInterval(pollHealth, 10000);
+refreshGemSelect();
+</script>
+</body>
+</html>
