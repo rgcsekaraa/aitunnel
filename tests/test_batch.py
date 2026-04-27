@@ -40,7 +40,7 @@ def test_build_batch_shape() -> None:
 
 def _length_prefix(chunk: str) -> bytes:
     utf16_len = sum(2 if ord(ch) > 0xFFFF else 1 for ch in chunk) + 2
-    return f"{utf16_len}\n{chunk}\n".encode("utf-8")
+    return f"{utf16_len}\n{chunk}\n".encode()
 
 
 @pytest.mark.asyncio

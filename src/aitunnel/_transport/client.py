@@ -16,8 +16,8 @@ from curl_cffi import requests as curl_requests
 from .._protocol import (
     BATCH_EXEC_URL,
     GENERATE_URL,
-    UPLOAD_URL,
     UPLOAD_HEADERS_BASE,
+    UPLOAD_URL,
     BatchCall,
     BatchPart,
     SessionInfo,

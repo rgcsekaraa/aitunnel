@@ -37,8 +37,8 @@ def build_upload_body(
         f"--{boundary}\r\n"
         f'Content-Disposition: form-data; name="file"; filename="{safe_name}"\r\n'
         f"Content-Type: {content_type}\r\n\r\n"
-    ).encode("utf-8")
-    tail = f"\r\n--{boundary}--\r\n".encode("utf-8")
+    ).encode()
+    tail = f"\r\n--{boundary}--\r\n".encode()
     body = head + data + tail
 
     return body, f"multipart/form-data; boundary={boundary}"

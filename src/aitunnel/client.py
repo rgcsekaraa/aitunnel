@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 from . import _protocol as proto
 from ._protocol.request import FileRef as ProtoFileRef
@@ -18,6 +18,9 @@ from .models import MODEL_UNSPECIFIED, Model
 from .retry import RetryPolicy
 from .stream import StreamReader
 from .types import FileAttachment, ModelOutput
+
+if TYPE_CHECKING:
+    from .chat import ChatSession
 
 log = logging.getLogger("aitunnel")
 
@@ -296,5 +299,5 @@ class Client:
     ) -> ChatSession:
         """Start a multi-turn ChatSession. Sends are persisted in your Gemini
         history."""
-        from .chat import ChatSession
+        from .chat import ChatSession  # local import: chat.py imports Client, so we'd loop
         return ChatSession(self, model=model or self._default_model, gem_id=gem_id)

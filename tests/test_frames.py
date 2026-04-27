@@ -15,7 +15,7 @@ def _length_prefix(chunk: str) -> bytes:
     """Encode a JSON list as one frame. Length counts both the leading and
     trailing newline (matching Google's framing)."""
     utf16_len = sum(2 if ord(ch) > 0xFFFF else 1 for ch in chunk) + 2
-    return f"{utf16_len}\n{chunk}\n".encode("utf-8")
+    return f"{utf16_len}\n{chunk}\n".encode()
 
 
 def _bytes_iter(blob: bytes):

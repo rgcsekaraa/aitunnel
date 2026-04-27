@@ -69,4 +69,17 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "ASYNC"]
-ignore = ["E501"]
+# E501: line length - we use 100 above, no need for the older E501 default
+# ASYNC230 / ASYNC240: async file I/O. Our occasional disk writes (uploaded
+# downloads, .env touches) are fine to do synchronously - converting to
+# anyio.path adds a dep without a real benefit at this scale.
+ignore = [
+    "E501",
+    # ASYNC109 wants asyncio.timeout(), but our `timeout=` parameter is a
+    # configuration value used inside a poll-loop, not a wrap-this-call timeout.
+    "ASYNC109",
+    # Async file I/O — disk writes for downloads and .env touches are short
+    # enough that anyio.path adds friction without measurable benefit.
+    "ASYNC230",
+    "ASYNC240",
+]

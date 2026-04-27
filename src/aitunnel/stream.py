@@ -4,11 +4,11 @@ text-deltas already computed."""
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from typing import Any, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import Any
 
 from . import _protocol as proto
-from .errors import EmptyResponseError, ModelError, classify_model_error
+from .errors import EmptyResponseError, classify_model_error
 from .types import (
     Candidate,
     Delta,
@@ -70,7 +70,7 @@ class StreamReader:
         self._signaled_eof = True
         await self.aclose()
 
-    def __aiter__(self) -> "StreamReader":
+    def __aiter__(self) -> StreamReader:
         return self
 
     async def __anext__(self) -> Delta:
@@ -100,7 +100,7 @@ class StreamReader:
                         "Gemini closed the stream before sending any content. "
                         "Common causes: safety/policy block, account rate-limited, "
                         "or transient upstream failure - try again or reword."
-                    )
+                    ) from None
                 self._done = True
                 out = self._build_output()
                 if self._on_complete is not None:

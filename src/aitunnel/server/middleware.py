@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import time
 
@@ -69,10 +68,11 @@ class JobTrackingMiddleware(BaseHTTPMiddleware):
             response: Response = await call_next(request)
         except Exception as e:
             duration_ms = int((time.monotonic() - t0) * 1000)
+            err_str = str(e)
             log.error("handler crashed: %s %s -> %r", request.method, request.url.path, e)
             await self._store.update(
                 job.id,
-                lambda j: _finalize(j, status="failed", code=500, duration_ms=duration_ms, error=str(e)),
+                lambda j: _finalize(j, status="failed", code=500, duration_ms=duration_ms, error=err_str),
             )
             return Response("internal server error", status_code=500, media_type="text/plain")
 

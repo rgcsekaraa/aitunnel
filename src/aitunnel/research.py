@@ -34,7 +34,6 @@ async def create_plan(client: Client, prompt: str) -> DeepResearchPlan:
         raise NotStartedError("Client not started")
     await _preflight(client)
 
-    chat = client.start_chat()
     stream = await client._open_stream(  # noqa: SLF001
         prompt,
         model=client.default_model,
@@ -152,7 +151,7 @@ async def wait(
         raise APIError(400, "plan has no research_id (was the run started?)")
     deadline = time.monotonic() + opts.timeout
     result = DeepResearchResult(plan=plan)
-    while time.monotonic() < deadline:
+    while time.monotonic() < deadline:  # noqa: ASYNC109 — explicit deadline is clearer than asyncio.timeout for this poll-loop
         st = await status(client, plan.research_id)
         if st is not None:
             result.statuses.append(st)

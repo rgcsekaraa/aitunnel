@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class ChatSession:
     """One persistent multi-turn conversation."""
 
-    def __init__(self, client: "Client", *, model: Model, gem_id: str = "") -> None:
+    def __init__(self, client: Client, *, model: Model, gem_id: str = "") -> None:
         self._client = client
         self._model = model
         self._gem_id = gem_id
@@ -44,7 +44,7 @@ class ChatSession:
     def metadata(self) -> tuple[str, str, str]:
         return self._cid, self._rid, self._rcid
 
-    def resume(self, cid: str, rid: str = "", rcid: str = "") -> "ChatSession":
+    def resume(self, cid: str, rid: str = "", rcid: str = "") -> ChatSession:
         """Seed the session with previously-captured metadata. Pass empty
         strings to clear/restart. Returns self for chaining."""
         self._cid = cid

@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-
 HEADER_MODEL_KEY = "x-goog-ext-525001261-jspb"
 
 

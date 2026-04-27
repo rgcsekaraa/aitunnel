@@ -8,7 +8,7 @@ import asyncio
 import secrets
 import time
 from collections import deque
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Any
 
 
@@ -77,7 +77,7 @@ class JobStore:
             jobs = jobs[:limit]
         return jobs
 
-    async def subscribe(self) -> tuple[asyncio.Queue[Job], "Subscription"]:
+    async def subscribe(self) -> tuple[asyncio.Queue[Job], Subscription]:
         q: asyncio.Queue[Job] = asyncio.Queue(maxsize=64)
         async with self._lock:
             self._subscribers.add(q)
@@ -91,7 +91,7 @@ class Subscription:
         self._store = store
         self._q = q
 
-    async def __aenter__(self) -> "Subscription":
+    async def __aenter__(self) -> Subscription:
         return self
 
     async def __aexit__(self, *_: object) -> None:

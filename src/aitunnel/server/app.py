@@ -8,15 +8,24 @@ import asyncio
 import json
 import logging
 import os
-import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv, set_key
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
+from .. import chats as _chats_mod  # noqa: F401
+from .. import download as _download_mod  # noqa: F401
+from .. import fullsize as _fullsize_mod  # noqa: F401
+from .. import gems as _gems_mod  # noqa: F401
+from .. import history as _history_mod  # noqa: F401
+from .. import research as _research_mod  # noqa: F401
+
+# Bring side-effect patches onto Client.
+from .. import upload as _upload_mod  # noqa: F401
 from ..client import Client
 from ..errors import (
     AitunnelError,
@@ -31,17 +40,8 @@ from ..errors import (
 )
 from ..retry import RetryPolicy
 from ..types import Delta, FileAttachment, ModelOutput
-from .jobs import JobStore, Job
+from .jobs import JobStore
 from .middleware import JobTrackingMiddleware
-
-# Bring side-effect patches onto Client.
-from .. import upload as _upload_mod  # noqa: F401
-from .. import download as _download_mod  # noqa: F401
-from .. import chats as _chats_mod  # noqa: F401
-from .. import history as _history_mod  # noqa: F401
-from .. import gems as _gems_mod  # noqa: F401
-from .. import research as _research_mod  # noqa: F401
-from .. import fullsize as _fullsize_mod  # noqa: F401
 
 log = logging.getLogger("aitunnel.server")
 
@@ -135,7 +135,6 @@ async def _bootstrap_with_retry(
 # ---- app builder ----
 
 def build_app() -> FastAPI:
-    app = FastAPI(title="aitunnel", version="0.2.0", docs_url=None, redoc_url=None)
     state: dict[str, Any] = {
         "client": None,
         "ready": False,
@@ -150,18 +149,25 @@ def build_app() -> FastAPI:
         log.info("retry attempt %d: %s", attempt, err)
     retry = RetryPolicy(on_attempt=_on_attempt)
 
-    app.add_middleware(JobTrackingMiddleware, store=jobs)
-
-    @app.on_event("startup")
-    async def _startup() -> None:
+    @asynccontextmanager
+    async def _lifespan(app: FastAPI):
         load_dotenv(_env_path(), override=True)
         await _try_start(state, retry)
+        try:
+            yield
+        finally:
+            c: Client | None = state.get("client")
+            if c is not None:
+                await c.close()
 
-    @app.on_event("shutdown")
-    async def _shutdown() -> None:
-        c: Client | None = state.get("client")
-        if c is not None:
-            await c.close()
+    app = FastAPI(
+        title="aitunnel",
+        version="0.2.0",
+        docs_url=None,
+        redoc_url=None,
+        lifespan=_lifespan,
+    )
+    app.add_middleware(JobTrackingMiddleware, store=jobs)
 
     # ---- static + dashboard ----
 
@@ -302,7 +308,7 @@ def build_app() -> FastAPI:
     # ---- upload ----
 
     @app.post("/upload")
-    async def upload(file: UploadFile = File(...)) -> FileAttachment:
+    async def upload(file: UploadFile = File(...)) -> FileAttachment:  # noqa: B008 — FastAPI idiom
         client = _client()
         data = await file.read()
         try:
@@ -427,7 +433,7 @@ def build_app() -> FastAPI:
                     try:
                         j = await asyncio.wait_for(q.get(), timeout=15.0)
                         yield _sse("job", j.to_dict())
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         # heartbeat to keep the connection alive
                         yield ": ping\n\n"
             finally:
