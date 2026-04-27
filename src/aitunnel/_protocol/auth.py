@@ -28,7 +28,15 @@ class SessionInfo:
     push_id: str = ""          # qKIAYe - used as Push-ID header for /upload
 
 
-_RE_ACCESS_TOKEN = re.compile(r'"SNlM0e":\s*"(.*?)"')
+# Multiple patterns for SNlM0e because Google occasionally changes how the
+# token is embedded in the bootstrap HTML — see HanaokaYuzu/Gemini-API#297.
+# We try each in order; first hit wins. Adding more patterns here is the
+# fastest fix when the wire format changes.
+_RE_ACCESS_TOKENS: list[re.Pattern[str]] = [
+    re.compile(r'"SNlM0e":\s*"(.*?)"'),
+    re.compile(r'SNlM0e\\?":\\?"([^\\"]+)\\?"'),  # escaped variant some builds use
+    re.compile(r"['\"]SNlM0e['\"]:\s*['\"]([^'\"]+)['\"]"),  # single-quoted variant
+]
 _RE_BUILD_LABEL = re.compile(r'"cfb2h":\s*"(.*?)"')
 _RE_SESSION_ID = re.compile(r'"FdrFJe":\s*"(.*?)"')
 _RE_LANGUAGE = re.compile(r'"TuX5cc":\s*"(.*?)"')
@@ -41,8 +49,13 @@ def parse_session_info(html: str) -> SessionInfo | None:
     Returns None if SNlM0e is absent — that means cookies didn't authenticate
     and the page Google served was the marketing/login fallback.
     """
-    m = _RE_ACCESS_TOKEN.search(html)
-    if not m or not m.group(1):
+    token = ""
+    for rx in _RE_ACCESS_TOKENS:
+        m = rx.search(html)
+        if m and m.group(1):
+            token = m.group(1)
+            break
+    if not token:
         return None
 
     def _grab(rx: re.Pattern[str]) -> str:
@@ -55,7 +68,7 @@ def parse_session_info(html: str) -> SessionInfo | None:
         push_id = "feeds/mcudyrk2a4khkz"
 
     return SessionInfo(
-        access_token=m.group(1),
+        access_token=token,
         build_label=_grab(_RE_BUILD_LABEL),
         session_id=_grab(_RE_SESSION_ID),
         language=_grab(_RE_LANGUAGE),

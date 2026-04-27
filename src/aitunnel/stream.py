@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator
 from typing import Any, Awaitable, Callable
 
 from . import _protocol as proto
-from .errors import ModelError, classify_model_error
+from .errors import EmptyResponseError, ModelError, classify_model_error
 from .types import (
     Candidate,
     Delta,
@@ -62,6 +62,14 @@ class StreamReader:
         follow-up turns."""
         self._on_complete = fn
 
+    async def cancel(self) -> None:
+        """Cancel the in-flight generation. Marks the stream done so further
+        iteration raises StopAsyncIteration immediately and releases the
+        underlying response. Idempotent."""
+        self._done = True
+        self._signaled_eof = True
+        await self.aclose()
+
     def __aiter__(self) -> "StreamReader":
         return self
 
@@ -81,7 +89,18 @@ class StreamReader:
             try:
                 env = await self._fr.__anext__()
             except StopAsyncIteration:
-                # Stream ended; build whatever we have.
+                # Stream ended. If we never saw any candidate text, the upstream
+                # closed silently — Google sometimes does this on safety blocks
+                # or when the request gets rate-limited mid-stream. Surface a
+                # clearer error than a bare empty Delta.
+                if not self._candidates:
+                    self._done = True
+                    self._signaled_eof = True
+                    raise EmptyResponseError(
+                        "Gemini closed the stream before sending any content. "
+                        "Common causes: safety/policy block, account rate-limited, "
+                        "or transient upstream failure - try again or reword."
+                    )
                 self._done = True
                 out = self._build_output()
                 if self._on_complete is not None:
