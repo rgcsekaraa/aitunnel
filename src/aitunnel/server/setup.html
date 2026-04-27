@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>aitunnel - setup</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+</style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+
+<header class="border-b border-zinc-800 px-6 py-3">
+  <div class="max-w-2xl mx-auto flex items-center gap-3">
+    <svg width="24" height="24" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect width="32" height="32" rx="7" fill="#10b981"/>
+      <path d="M11 9 L19 16 L11 23 M16 9 L24 16 L16 23"
+            stroke="#022c22" stroke-width="3"
+            stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>
+    <span class="text-xl font-bold tracking-tight">aitunnel</span>
+    <span class="text-xs text-zinc-500">first-time setup</span>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto p-6 space-y-6">
+
+  <div id="flash" class="hidden bg-red-900/30 border border-red-800 text-red-300 rounded p-3 text-sm"></div>
+
+  <div>
+    <h2 class="text-lg font-semibold mb-1">Paste your Gemini cookies</h2>
+    <p class="text-sm text-zinc-400">
+      Both <code class="text-emerald-400">__Secure-1PSID</code> and
+      <code class="text-emerald-400">__Secure-1PSIDTS</code> are required for
+      the first bootstrap. After that, the server auto-rotates PSIDTS
+      indefinitely - you won't need to re-paste until PSID expires (months).
+    </p>
+    <p class="text-xs text-amber-400 mt-2">
+      ⚠ <code>__Secure-1PSIDTS</code> rotates ~hourly. Copy it <strong>now</strong>
+      from a fresh gemini.google.com tab and submit within a few minutes.
+    </p>
+  </div>
+
+  <details class="bg-zinc-900 border border-zinc-800 rounded p-4 text-sm">
+    <summary class="cursor-pointer font-medium">How to find them</summary>
+    <ol class="list-decimal pl-6 mt-3 space-y-2 text-zinc-300">
+      <li>Open <a class="text-emerald-400 underline" href="https://gemini.google.com" target="_blank">https://gemini.google.com</a> - you must see the <strong>chat UI</strong>, not a login page.</li>
+      <li>Press <kbd class="bg-zinc-800 px-1.5 py-0.5 rounded text-xs">F12</kbd> (or <kbd class="bg-zinc-800 px-1.5 py-0.5 rounded text-xs">⌥⌘I</kbd> on Mac).</li>
+      <li><strong>Application</strong> tab → <strong>Cookies</strong> → <code>https://gemini.google.com</code>.</li>
+      <li>Copy the <em>Value</em> of <code>__Secure-1PSID</code> and <code>__Secure-1PSIDTS</code>.</li>
+      <li>Paste below and click Save.</li>
+    </ol>
+  </details>
+
+  <form id="form" class="space-y-4">
+    <div>
+      <label class="block text-sm text-zinc-400 mb-1" for="psid">__Secure-1PSID</label>
+      <textarea id="psid" rows="3" required
+        class="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs font-mono focus:outline-none focus:border-emerald-500"
+        placeholder="g.a000..."></textarea>
+    </div>
+    <div>
+      <label class="block text-sm text-zinc-400 mb-1" for="psidts">__Secure-1PSIDTS</label>
+      <textarea id="psidts" rows="2" required
+        class="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs font-mono focus:outline-none focus:border-emerald-500"
+        placeholder="sidts-..."></textarea>
+    </div>
+    <button type="submit" id="save-btn"
+      class="bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-medium px-4 py-2 rounded text-sm">
+      Save &amp; start
+    </button>
+  </form>
+
+  <div id="result" class="text-sm hidden"></div>
+
+</main>
+
+<script>
+const $ = sel => document.querySelector(sel);
+
+fetch('/setup/flash').then(r => r.json()).then(j => {
+  if (j.flash) {
+    const el = $('#flash');
+    el.textContent = j.flash;
+    el.classList.remove('hidden');
+  }
+}).catch(() => {});
+
+document.getElementById('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  await save();
+});
+
+async function save() {
+  const psid = $('#psid').value.trim();
+  const psidts = $('#psidts').value.trim();
+  if (!psid || !psidts) return;
+
+  const btn = $('#save-btn');
+  const result = $('#result');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  result.classList.remove('hidden');
+  result.className = 'text-sm text-zinc-400';
+  result.textContent = 'writing .env, then bootstrapping the Gemini session…';
+
+  try {
+    const r = await fetch('/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ psid, psidts }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      result.className = 'text-sm text-red-400';
+      result.textContent = 'error: ' + (j.error || (await r.text().catch(() => 'unknown')));
+      btn.disabled = false; btn.textContent = 'Save & start';
+      return;
+    }
+    result.className = 'text-sm text-emerald-400';
+    result.textContent = 'Saved. Switching to the dashboard…';
+    await waitForReady();
+    location.href = '/';
+  } catch (e) {
+    result.className = 'text-sm text-red-400';
+    result.textContent = 'network error: ' + e.message;
+    btn.disabled = false; btn.textContent = 'Save & start';
+  }
+}
+
+async function waitForReady() {
+  let sawSetupAgain = 0;
+  for (let i = 0; i < 120; i++) {
+    try {
+      const r = await fetch('/health');
+      if (r.ok) {
+        const j = await r.json();
+        if (j.ok) return;
+        if (j.setup) {
+          sawSetupAgain++;
+          if (sawSetupAgain > 4) { location.reload(); return; }
+        }
+      }
+    } catch {}
+    await new Promise(r => setTimeout(r, 500));
+  }
+  location.reload();
+}
+</script>
+</body>
+</html>
