@@ -30,7 +30,7 @@ class Model:
 
 
 # UNSPECIFIED: defer model choice to whatever Gemini's web UI is currently
-# defaulting to. Most flexible — avoids needing to update build IDs manually.
+# defaulting to. Most flexible - avoids needing to update build IDs manually.
 MODEL_UNSPECIFIED = Model(name="unspecified")
 
 MODEL_PRO = Model(

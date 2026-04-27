@@ -78,7 +78,7 @@ ignore = [
     # ASYNC109 wants asyncio.timeout(), but our `timeout=` parameter is a
     # configuration value used inside a poll-loop, not a wrap-this-call timeout.
     "ASYNC109",
-    # Async file I/O — disk writes for downloads and .env touches are short
+    # Async file I/O - disk writes for downloads and .env touches are short
     # enough that anyio.path adds friction without measurable benefit.
     "ASYNC230",
     "ASYNC240",

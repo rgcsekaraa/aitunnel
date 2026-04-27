@@ -5,7 +5,7 @@ Body shape (after the `)]}'` anti-XSSI prefix):
     <utf16-units>\\n<json-payload>\\n<utf16-units>\\n<json-payload>\\n...
 
 Each frame's length counts UTF-16 code units (matching JavaScript's
-`String.length`), not bytes — so emoji and CJK count as 2. We track this
+`String.length`), not bytes - so emoji and CJK count as 2. We track this
 exactly because off-by-one errors here desync the whole stream.
 
 The frame's JSON payload is a *list of envelopes*; we flatten it and yield

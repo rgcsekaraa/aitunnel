@@ -23,8 +23,8 @@ async def _upload_bytes(
         raise ValueError("empty upload")
     push_id = client.push_id
     if not push_id:
-        raise NotStartedError("push_id missing — re-start the client")
-    # Retry the upload itself — the content-push endpoint occasionally returns
+        raise NotStartedError("push_id missing - re-start the client")
+    # Retry the upload itself - the content-push endpoint occasionally returns
     # transient 5xx during heavy use, which fails the whole multi-file flow
     # without a retry. Addresses upstream gemini_webapi#284.
     import asyncio as _asyncio

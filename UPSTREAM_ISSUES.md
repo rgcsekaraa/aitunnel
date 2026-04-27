@@ -33,7 +33,7 @@ Last reviewed against gemini_webapi at the **April 2026** issue snapshot.
 | Their issue | Status here |
 |---|---|
 | **#318** Image generation fails with "No CID found to recover" | ⚠️ Partially. Our `EmptyResponseError` covers the silent-close case. The deeper "candidate finished without media URL" case is tracked: it surfaces as a complete `Delta` with empty `generated_images`, which is at least non-misleading (caller sees `len(out.candidates[0].generated_images) == 0` and can retry). |
-| **#294** Long image generation time | Not actionable — Google-side latency. |
+| **#294** Long image generation time | Not actionable - Google-side latency. |
 
 ## Out-of-scope feature requests
 
@@ -44,7 +44,7 @@ to support:
 |---|---|
 | **#316** Publish CLI as installable package | We're already pip-installable; the HTTP server (`aitunnel-server`) is our equivalent of a CLI. A separate CLI tool would duplicate it. |
 | **#311** NotebookLM as queryable source | Different RPC surface; not in our scope. Use gemini_webapi if you need this. |
-| **#308** Notebooks feature | Same — distinct RPC surface, not on our roadmap. |
+| **#308** Notebooks feature | Same - distinct RPC surface, not on our roadmap. |
 | **#303** Nano Banana Pro image generation | We parse + download generated images but don't support image editing or "Redo with Pro". Use gemini_webapi for that. |
 
 ## Not bugs

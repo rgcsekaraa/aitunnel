@@ -90,7 +90,7 @@ class StreamReader:
                 env = await self._fr.__anext__()
             except StopAsyncIteration:
                 # Stream ended. If we never saw any candidate text, the upstream
-                # closed silently — Google sometimes does this on safety blocks
+                # closed silently - Google sometimes does this on safety blocks
                 # or when the request gets rate-limited mid-stream. Surface a
                 # clearer error than a bare empty Delta.
                 if not self._candidates:

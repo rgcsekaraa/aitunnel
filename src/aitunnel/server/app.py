@@ -308,7 +308,7 @@ def build_app() -> FastAPI:
     # ---- upload ----
 
     @app.post("/upload")
-    async def upload(file: UploadFile = File(...)) -> FileAttachment:  # noqa: B008 — FastAPI idiom
+    async def upload(file: UploadFile = File(...)) -> FileAttachment:  # noqa: B008 - FastAPI idiom
         client = _client()
         data = await file.read()
         try:

@@ -422,7 +422,7 @@ function setOnlineState() {
       banner = document.createElement('div');
       banner.id = 'offline-banner';
       banner.className = 'offline-banner';
-      banner.textContent = '⚠ offline — requests will queue until reconnect';
+      banner.textContent = '⚠ offline - requests will queue until reconnect';
       document.body.appendChild(banner);
     }
   } else if (banner) {
@@ -478,7 +478,7 @@ $('#q-copy').addEventListener('click', async () => {
     btn.textContent = '✓ copied';
     setTimeout(() => btn.textContent = orig, 1500);
   } catch {
-    flashError('clipboard not available — select and copy manually');
+    flashError('clipboard not available - select and copy manually');
   }
 });
 $('#q-rerender').addEventListener('click', () => {

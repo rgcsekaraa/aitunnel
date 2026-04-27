@@ -151,7 +151,7 @@ async def wait(
         raise APIError(400, "plan has no research_id (was the run started?)")
     deadline = time.monotonic() + opts.timeout
     result = DeepResearchResult(plan=plan)
-    while time.monotonic() < deadline:  # noqa: ASYNC109 — explicit deadline is clearer than asyncio.timeout for this poll-loop
+    while time.monotonic() < deadline:  # noqa: ASYNC109 - explicit deadline is clearer than asyncio.timeout for this poll-loop
         st = await status(client, plan.research_id)
         if st is not None:
             result.statuses.append(st)
@@ -197,7 +197,7 @@ async def deep_research(
 
 async def _preflight(client: Client) -> None:
     """Best-effort warmup RPCs the web client sends before deep research.
-    Failures are logged, not raised — the actual generate often still works.
+    Failures are logged, not raised - the actual generate often still works.
     Both calls run in parallel."""
     sess = client.session_info
     calls = [

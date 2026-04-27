@@ -23,7 +23,7 @@ curl -X POST localhost:8000/query \
 
 Google's official Gemini API is rate-limited and not available everywhere.
 The web app at gemini.google.com isn't. aitunnel reverse-engineers the same
-internal protocol the web UI uses — same models, same quality, no API key.
+internal protocol the web UI uses - same models, same quality, no API key.
 
 It runs locally against your own Google account. Not a SaaS, not a wrapper
 around the official API.
@@ -40,7 +40,7 @@ opinionated alternative. Honest comparison:
 | Architecture             | Four-layer (server / public / `_protocol/` / `_transport/`), one job per file | Single 1.9k-line `client.py` with 9 mixins |
 | HTTP server              | **FastAPI included**, run with `aitunnel-server` | Library only |
 | Web dashboard            | **Built-in** (sidebar nav, markdown, drag-drop, activity log) | None |
-| Multi-turn via HTTP      | **`cid` passthrough** — stateless server | Library-only (Python ChatSession) |
+| Multi-turn via HTTP      | **`cid` passthrough** - stateless server | Library-only (Python ChatSession) |
 | Activity log             | **In-memory ring buffer + SSE feed** | None |
 | Tests                    | 17 protocol-layer tests with synthetic fixtures | Sparse |
 | Image generation         | Parse + download | Parse + download + edit (Nano Banana) |
@@ -92,7 +92,7 @@ The first time you start it without cookies, the setup form appears at
 4. Paste them into the form, click Save.
 
 After that, the background rotator keeps `__Secure-1PSIDTS` fresh
-indefinitely. You only re-paste when `__Secure-1PSID` itself expires —
+indefinitely. You only re-paste when `__Secure-1PSID` itself expires -
 months, not hours.
 
 ## API in 30 seconds
@@ -104,7 +104,7 @@ curl -X POST localhost:8000/query -d '{"prompt": "hello"}'
 # streaming (SSE)
 curl -N -X POST localhost:8000/query/stream -d '{"prompt": "tell a story"}'
 
-# multi-turn — feed the cid back
+# multi-turn - feed the cid back
 RESP=$(curl -s -X POST localhost:8000/query \
   -d '{"prompt":"my favorite colour is teal"}')
 CID=$(echo "$RESP" | jq -r .metadata.cid)
@@ -212,7 +212,7 @@ HTTPS_PROXY=                  # optional outbound proxy
 - **Auth**: GETs `gemini.google.com/app` with your cookies, regexes the
   `SNlM0e` access token from the bootstrap HTML.
 - **Generate**: POSTs to `BardFrontendService/StreamGenerate` with a
-  form-encoded body — access token plus Google's nested-JSON `f.req`
+  form-encoded body - access token plus Google's nested-JSON `f.req`
   payload (a 69-element inner array embedded inside a 2-element outer
   array). Response is a length-prefixed stream of envelopes.
 - **Cookie rotation**: a background `asyncio.Task` POSTs to
@@ -227,8 +227,8 @@ something. Four-layer architecture means breakage usually localises to
 
 ## Troubleshooting
 
-**"SNlM0e token not found in bootstrap"** — Cookies didn't authenticate.
-Open https://gemini.google.com in a fresh tab — you should see the chat UI,
+**"SNlM0e token not found in bootstrap"** - Cookies didn't authenticate.
+Open https://gemini.google.com in a fresh tab - you should see the chat UI,
 not a login page. If you do, re-copy `__Secure-1PSID` and `__Secure-1PSIDTS`
 and paste again. If `__Secure-1PSIDTS` was copied a few hours ago, it's
 expired (it rotates ~hourly). Note: Google occasionally changes the format
@@ -236,23 +236,23 @@ of how SNlM0e is embedded in the HTML; if multiple pastes still fail and
 gemini.google.com shows the chat UI for you, the parser may need updating
 in `src/aitunnel/_protocol/auth.py`.
 
-**"Gemini closed the stream before sending any content"** — Most often a
+**"Gemini closed the stream before sending any content"** - Most often a
 safety/policy block on the prompt. Reword and retry. Less often: account
 rate-limited or transient upstream failure.
 
-**Multi-turn forgets the previous turn** — Make sure you're sending `cid`
+**Multi-turn forgets the previous turn** - Make sure you're sending `cid`
 (and ideally `rid`/`rcid`) from the previous response's `metadata` in the
 next request. See the multi-turn example above.
 
-**Cookies stop working after a few days** — `__Secure-1PSID` itself eventually
+**Cookies stop working after a few days** - `__Secure-1PSID` itself eventually
 expires (months for daily users, faster if you sign out elsewhere). Re-paste
 both cookies via the setup form.
 
-**Image generation returns nothing** — Image generation is region-restricted
+**Image generation returns nothing** - Image generation is region-restricted
 by Google. If your account doesn't have access, the response will be text
 explaining that.
 
-**Lots of `transient error 1013`** — Usually a temporary Gemini issue.
+**Lots of `transient error 1013`** - Usually a temporary Gemini issue.
 The retry policy (3 attempts with backoff) catches most of these silently.
 If you see it bubble up, retry the full request a few minutes later.
 
@@ -260,14 +260,14 @@ If you see it bubble up, retry the full request a few minutes later.
 
 To set expectations honestly:
 
-- No image editing (Nano Banana) — only generation. Use [gemini_webapi][upstream]
+- No image editing (Nano Banana) - only generation. Use [gemini_webapi][upstream]
   for editing.
-- No NotebookLM, no Google Workspace extensions (YouTube/Gmail/Maps) — text + media
+- No NotebookLM, no Google Workspace extensions (YouTube/Gmail/Maps) - text + media
   only.
-- No CLI tool — the HTTP API is the only public surface besides the Python package.
-- No stable wire format — Google changes things periodically. Pin a version that
+- No CLI tool - the HTTP API is the only public surface besides the Python package.
+- No stable wire format - Google changes things periodically. Pin a version that
   works for you.
-- No multi-account on the same process — run multiple instances on different
+- No multi-account on the same process - run multiple instances on different
   ports if you need this.
 
 ## Layout
@@ -288,7 +288,7 @@ To set expectations honestly:
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Wire-format breakage is the most
-common bug — open an issue with `LOG_LEVEL=debug` server output and I'll
+common bug - open an issue with `LOG_LEVEL=debug` server output and I'll
 patch the protocol indices.
 
 ## Acknowledgements

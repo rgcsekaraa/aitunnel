@@ -144,7 +144,7 @@ class Client:
     # ---- session info -------------------------------------------------------
 
     async def _bootstrap(self) -> None:
-        # Try twice — Google occasionally serves a half-rendered page on the
+        # Try twice - Google occasionally serves a half-rendered page on the
         # first request after the cookie jar settles. Retrying once handles
         # the race and avoids a noisy AuthError on otherwise-good cookies.
         # Addresses upstream gemini_webapi#319.
@@ -183,12 +183,12 @@ class Client:
         # (parser drift), or something else.
         snippet = last_html[:240].replace("\n", " ").strip()
         if "accounts.google.com" in last_html and "ServiceLogin" in last_html:
-            hint = "got the login page — cookies are invalid or expired"
+            hint = "got the login page - cookies are invalid or expired"
         elif "<title>" in last_html.lower():
             t_start = last_html.lower().find("<title>") + 7
             t_end = last_html.lower().find("</title>", t_start)
             title = last_html[t_start:t_end][:80] if t_end > 0 else ""
-            hint = f"page title: {title!r} — likely Google rejected the session"
+            hint = f"page title: {title!r} - likely Google rejected the session"
         else:
             hint = f"first 240 chars: {snippet!r}"
         raise AuthError(
@@ -202,7 +202,7 @@ class Client:
                 try:
                     new_val, status = await rotate_cookies(self._tx)
                     if status == 401:
-                        self._log.error("cookie rotation 401 — session dead, stopping rotator")
+                        self._log.error("cookie rotation 401 - session dead, stopping rotator")
                         return
                     if new_val and new_val != self._psidts:
                         self._psidts = new_val
@@ -217,13 +217,13 @@ class Client:
     @property
     def transport(self) -> Transport:
         if self._session is None:
-            raise NotStartedError("Client not started — call start() first")
+            raise NotStartedError("Client not started - call start() first")
         return self._tx
 
     @property
     def session_info(self) -> proto.SessionInfo:
         if self._session is None:
-            raise NotStartedError("Client not started — call start() first")
+            raise NotStartedError("Client not started - call start() first")
         return self._session
 
     # ---- generate -----------------------------------------------------------
@@ -274,7 +274,7 @@ class Client:
         deep_research: bool = False,
     ) -> StreamReader:
         if not self.ready:
-            raise NotStartedError("Client not started — call start() first")
+            raise NotStartedError("Client not started - call start() first")
         if not prompt or not prompt.strip():
             raise ValueError("prompt must be non-empty")
         m = model or self._default_model

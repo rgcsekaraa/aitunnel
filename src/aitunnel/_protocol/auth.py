@@ -29,7 +29,7 @@ class SessionInfo:
 
 
 # Multiple patterns for SNlM0e because Google occasionally changes how the
-# token is embedded in the bootstrap HTML — see HanaokaYuzu/Gemini-API#297.
+# token is embedded in the bootstrap HTML - see HanaokaYuzu/Gemini-API#297.
 # We try each in order; first hit wins. Adding more patterns here is the
 # fastest fix when the wire format changes.
 _RE_ACCESS_TOKENS: list[re.Pattern[str]] = [
@@ -46,7 +46,7 @@ _RE_PUSH_ID = re.compile(r'"qKIAYe":\s*"(.*?)"')
 def parse_session_info(html: str) -> SessionInfo | None:
     """Extract session-info fields from the bootstrap HTML.
 
-    Returns None if SNlM0e is absent — that means cookies didn't authenticate
+    Returns None if SNlM0e is absent - that means cookies didn't authenticate
     and the page Google served was the marketing/login fallback.
     """
     token = ""
