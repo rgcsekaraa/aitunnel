@@ -141,22 +141,55 @@ class Client:
     # ---- session info -------------------------------------------------------
 
     async def _bootstrap(self) -> None:
-        resp = await self._tx.get(
-            proto.INIT_URL,
-            headers={
-                "Origin": "https://gemini.google.com",
-                "Referer": "https://gemini.google.com/",
-            },
-        )
-        if resp.status_code != 200:
-            raise APIError(resp.status_code, "bootstrap returned non-200", cause=AuthError())
-        info = proto.parse_session_info(resp.text or "")
-        if info is None:
-            raise AuthError("SNlM0e token not found in bootstrap (cookies likely invalid)")
-        self._session = info
-        self._log.info(
-            "aitunnel ready (build=%s session=%s lang=%s)",
-            info.build_label, _redact(info.session_id), info.language,
+        # Try twice — Google occasionally serves a half-rendered page on the
+        # first request after the cookie jar settles. Retrying once handles
+        # the race and avoids a noisy AuthError on otherwise-good cookies.
+        # Addresses upstream gemini_webapi#319.
+        last_html = ""
+        last_status = 0
+        for attempt in (1, 2):
+            resp = await self._tx.get(
+                proto.INIT_URL,
+                headers={
+                    "Origin": "https://gemini.google.com",
+                    "Referer": "https://gemini.google.com/",
+                },
+            )
+            last_status = resp.status_code
+            if resp.status_code != 200:
+                if attempt == 1:
+                    await asyncio.sleep(0.5)
+                    continue
+                raise APIError(resp.status_code, "bootstrap returned non-200", cause=AuthError())
+            html = resp.text or ""
+            last_html = html
+            info = proto.parse_session_info(html)
+            if info is not None:
+                self._session = info
+                self._log.info(
+                    "aitunnel ready (build=%s session=%s lang=%s)",
+                    info.build_label, _redact(info.session_id), info.language,
+                )
+                return
+            if attempt == 1:
+                await asyncio.sleep(0.5)
+                continue
+
+        # Both attempts failed. Build a diagnostic error so the user can tell
+        # whether they got the login page (cookies bad), an unfamiliar shape
+        # (parser drift), or something else.
+        snippet = last_html[:240].replace("\n", " ").strip()
+        if "accounts.google.com" in last_html and "ServiceLogin" in last_html:
+            hint = "got the login page — cookies are invalid or expired"
+        elif "<title>" in last_html.lower():
+            t_start = last_html.lower().find("<title>") + 7
+            t_end = last_html.lower().find("</title>", t_start)
+            title = last_html[t_start:t_end][:80] if t_end > 0 else ""
+            hint = f"page title: {title!r} — likely Google rejected the session"
+        else:
+            hint = f"first 240 chars: {snippet!r}"
+        raise AuthError(
+            f"SNlM0e token not found in bootstrap (HTTP {last_status}). {hint}"
         )
 
     async def _rotate_loop(self) -> None:

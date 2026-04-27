@@ -24,8 +24,22 @@ async def _upload_bytes(
     push_id = client.push_id
     if not push_id:
         raise NotStartedError("push_id missing — re-start the client")
-    url = await client.transport.upload_file(push_id, filename, content_type, data)
-    return FileAttachment(url=url, filename=filename or "upload.bin")
+    # Retry the upload itself — the content-push endpoint occasionally returns
+    # transient 5xx during heavy use, which fails the whole multi-file flow
+    # without a retry. Addresses upstream gemini_webapi#284.
+    import asyncio as _asyncio
+    last_err: Exception | None = None
+    for attempt in range(1, 4):
+        try:
+            url = await client.transport.upload_file(push_id, filename, content_type, data)
+            return FileAttachment(url=url, filename=filename or "upload.bin")
+        except Exception as e:
+            last_err = e
+            if attempt >= 3:
+                break
+            await _asyncio.sleep(0.5 * attempt)
+    assert last_err is not None
+    raise last_err
 
 
 async def upload_file(

@@ -55,6 +55,9 @@ If you need Nano Banana / extensions / CLI, use [gemini_webapi][upstream]. If
 you need a local Gemini *server* with a dashboard and clean architecture,
 use this.
 
+For an issue-by-issue mapping of what aitunnel addresses from gemini_webapi's
+tracker, see [UPSTREAM_ISSUES.md](UPSTREAM_ISSUES.md).
+
 [upstream]: https://github.com/HanaokaYuzu/Gemini-API
 
 ## Install
